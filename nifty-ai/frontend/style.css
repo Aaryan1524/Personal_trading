@@ -627,6 +627,72 @@ input, textarea, select {
   font-weight: 600;
 }
 
+/* ───────────── scenario banner ───────────── */
+
+.scenario-banner {
+  grid-column: 1 / -1;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.scenario-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #3B82F6;
+}
+
+.scenario-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E40AF;
+}
+
+.strategy-card-primary {
+  border-color: #93C5FD;
+  box-shadow: 0 0 0 2px #BFDBFE;
+}
+
+.strategy-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--bull);
+}
+
+.strategy-badge-alt {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.btn-build {
+  margin-top: auto;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms ease;
+  align-self: flex-start;
+}
+
+.btn-build:hover {
+  background: #18895F;
+}
+
 /* ───────────── payoff placeholder ───────────── */
 
 .payoff-placeholder {

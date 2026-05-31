@@ -1,0 +1,26 @@
+SCENARIO CONTEXT: Low IV + Bullish (IV rank <40%, price > EMA20 > EMA50)
+
+IV is cheap and price is trending up — buying premium is favorable.
+Options are underpriced relative to history; buy directional exposure with a defined ceiling.
+
+PRIMARY STRATEGY: Bull Call Spread or Long Call
+
+Reasoning:
+- Low IV means buying premium is cheap — ideal for debit spreads
+- Uptrend gives directional edge
+- Spread limits cost while maintaining upside exposure
+
+Execution rules:
+- Buy ATM CE (at-the-money call)
+- Sell OTM CE at the nearest resistance level (OI wall or technical resistance)
+- Total premium paid must be under ₹3,000 across all lots
+- If a single ATM call fits within ₹3,000 budget, a long call is acceptable
+
+Key risk: Theta burn if the move doesn't happen within DTE/2.
+If spot hasn't moved in your favor by the halfway mark to expiry, reassess and exit.
+
+Sizing rule: Total premium paid (net debit x lot size x number of lots) must be under ₹3,000.
+This is your maximum loss on the trade. Size lots accordingly.
+
+Time awareness: With low IV and a directional bet, time is your enemy.
+Set a time stop at DTE/2 — if the trade isn't working by then, exit regardless of P&L.

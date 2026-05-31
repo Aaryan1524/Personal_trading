@@ -1,0 +1,26 @@
+SCENARIO CONTEXT: High IV + Bullish (IV rank >60%, price > EMA20 > EMA50)
+
+IV is elevated but price is above both EMAs — trend is up, fear is high.
+Sell puts in the direction of the trend. The trend is your tailwind; IV is your edge.
+
+PRIMARY STRATEGY: Bull Put Spread
+
+Reasoning:
+- Elevated IV makes put selling lucrative
+- Uptrend means spot is moving away from the short put
+- Defined risk keeps max loss capped in case of sudden reversal
+
+Execution rules:
+- Sell ATM-1 PE (one strike below ATM)
+- Buy ATM-3 PE for protection (three strikes below ATM)
+- Spread width: keep under ₹200 for BankNifty, under ₹100 for Nifty
+- Net credit should be at least 30% of the spread width
+
+Key risk: Sudden reversal or gap-down on news.
+If spot breaks below EMA20 intraday, treat as invalidation and exit.
+
+Sizing rule: Keep spread width under ₹200 (BankNifty) or ₹100 (Nifty).
+This keeps max loss per lot within risk tolerance.
+
+Alternative if trend is very strong: Sell a single OTM put (cash-secured) instead of a spread,
+but only if defined capital can absorb the margin and max loss stays under ₹4,000.

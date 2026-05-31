@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+
+# pyrefly: ignore [missing-import]
 from kiteconnect import KiteConnect
 
 TOKEN_PATH = Path(__file__).resolve().parents[2] / "token.json"

@@ -6,7 +6,7 @@ from .kite import get_kite_client
 
 NIFTY_INSTRUMENT_TOKEN = 256265
 NIFTY_NAME = "NIFTY"
-NIFTY_LOT_SIZE = 50
+NIFTY_LOT_SIZE = 65
 RISK_FREE_RATE = 0.07
 
 
@@ -112,6 +112,7 @@ def get_nifty50_data() -> dict:
         "spot": spot,
         "strikes": chain,
         "atm_strike": atm,
+        "expiry_date": expiry.strftime("%d-%b-%Y"),
         "days_to_expiry": (expiry - date.today()).days,
         "lot_size": NIFTY_LOT_SIZE,
     }

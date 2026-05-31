@@ -1,0 +1,25 @@
+SCENARIO CONTEXT: High VIX (VIX > 18)
+
+Market is in fear mode. Elevated VIX signals institutional hedging or panic.
+All premium selling carries elevated gap risk — gaps can breach stop losses instantly.
+
+Open your response with this exact line:
+"VIX elevated at [X] — position sizing reduced"
+
+Mandatory adjustments for all strategies when VIX > 18:
+- Reduce lot size by 50% across all strategies (round down to whole lots)
+- Widen stop losses by 20% from normal levels
+- Prefer defined-risk strategies only: spreads, Iron Condors, debit spreads
+- No naked short strangles — the tail risk is too high in elevated VIX environments
+
+Risk reasoning:
+- High VIX means realized volatility is elevated — options can gap through strikes
+- Wider stops are needed to avoid being stopped out by noise
+- Smaller lots mean a gap move doesn't wipe out the account
+
+When VIX > 25: consider sitting out entirely or only reviewing existing positions.
+Flag this explicitly if VIX exceeds 25.
+
+If you would normally suggest a Short Strangle, replace it with an Iron Condor.
+If you would normally suggest a Naked Put, replace it with a Bull Put Spread.
+Every short option must have a long option as a defined hedge.

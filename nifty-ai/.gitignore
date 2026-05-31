@@ -2,4 +2,5 @@
 token.json
 __pycache__
 data_store/iv_history.json
+data_store/trades.json
 *.pyc

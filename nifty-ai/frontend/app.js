@@ -4,6 +4,7 @@
 
 const API = {
   market: (instrument) => `/api/market?instrument=${encodeURIComponent(instrument)}`,
+  scenario: (instrument) => `/api/scenario?instrument=${encodeURIComponent(instrument)}`,
   chat: "/api/chat",
   clear: "/api/session/clear",
   positions: "/api/positions",
@@ -256,145 +257,64 @@ function renderChain(ctx) {
 }
 
 // ──────────────────────────────────────────────────────────────
-//  strategy builder — dynamic cards based on market state
+//  strategy builder — scenario-driven cards
 // ──────────────────────────────────────────────────────────────
 
-function buildStrategies(ctx) {
-  const cards = [];
-  const ivRank = ctx.technicals?.iv_rank;
-  const trend = ctx.trend;
-  const dte = ctx.days_to_expiry;
-  const atm = ctx.atm_strike;
-  const lot = ctx.lot_size || 50;
+const SCENARIO_LABELS = {
+  expiry_day:        "Expiry Day — gamma risk is extreme",
+  high_vix:          "High VIX — position sizing reduced",
+  high_iv_bearish:   "High IV Bearish — favor premium selling",
+  high_iv_bullish:   "High IV Bullish — sell puts with trend",
+  low_iv_bullish:    "Low IV Bullish — buy cheap calls",
+  low_iv_bearish:    "Low IV Bearish — buy cheap puts",
+  neutral_rangebound:"Neutral / Range-bound — collect theta",
+};
 
-  const stepFromChain = (() => {
-    const strikes = ctx.strikes || [];
-    if (strikes.length < 2) return 50;
-    const diffs = [];
-    for (let i = 1; i < strikes.length; i++) diffs.push(strikes[i].strike - strikes[i-1].strike);
-    return Math.min(...diffs);
-  })();
+async function renderBuilder(ctx) {
+  const container = document.getElementById("builder-grid");
 
-  const wing = stepFromChain * 4;
-
-  if (ivRank != null && ivRank >= 70 && atm != null) {
-    cards.push({
-      name: "Iron Condor",
-      bias: "neutral",
-      rationale: `IV rank ${fmt.pct(ivRank)}. Range-bound view; collect decay around the ATM range.`,
-      legs: [
-        { side: "SELL", type: "CE", strike: atm + stepFromChain * 2, qty: lot },
-        { side: "BUY", type: "CE", strike: atm + stepFromChain * 4, qty: lot },
-        { side: "SELL", type: "PE", strike: atm - stepFromChain * 2, qty: lot },
-        { side: "BUY", type: "PE", strike: atm - stepFromChain * 4, qty: lot },
-      ],
-      meta: [`DTE ${dte}`, `Wings ${wing} pts`],
-    });
-    cards.push({
-      name: "Short Strangle",
-      bias: "neutral",
-      rationale: "Aggressive premium collection. Use only if you're comfortable with undefined risk.",
-      legs: [
-        { side: "SELL", type: "CE", strike: atm + stepFromChain * 3, qty: lot },
-        { side: "SELL", type: "PE", strike: atm - stepFromChain * 3, qty: lot },
-      ],
-      meta: [`DTE ${dte}`, "Undefined risk"],
-    });
-  }
-
-  if (ivRank != null && ivRank <= 30 && atm != null) {
-    cards.push({
-      name: "Long Straddle",
-      bias: "neutral",
-      rationale: `IV rank ${fmt.pct(ivRank)}. Buy volatility; profits from a sharp move either side.`,
-      legs: [
-        { side: "BUY", type: "CE", strike: atm, qty: lot },
-        { side: "BUY", type: "PE", strike: atm, qty: lot },
-      ],
-      meta: [`DTE ${dte}`, "Net debit"],
-    });
-  }
-
-  if (trend === "bullish" && atm != null) {
-    cards.push({
-      name: "Bull Call Spread",
-      bias: "bullish",
-      rationale: "Trend is up. Defined-risk directional play with limited cost.",
-      legs: [
-        { side: "BUY", type: "CE", strike: atm, qty: lot },
-        { side: "SELL", type: "CE", strike: atm + stepFromChain * 2, qty: lot },
-      ],
-      meta: [`DTE ${dte}`, "Net debit"],
-    });
-    cards.push({
-      name: "Cash-Secured Put",
-      bias: "bullish",
-      rationale: "Get paid to wait for a dip. Worst case: assigned below your entry.",
-      legs: [
-        { side: "SELL", type: "PE", strike: atm - stepFromChain * 2, qty: lot },
-      ],
-      meta: [`DTE ${dte}`, "Margin required"],
-    });
-  }
-
-  if (trend === "bearish" && atm != null) {
-    cards.push({
-      name: "Bear Put Spread",
-      bias: "bearish",
-      rationale: "Trend is down. Defined-risk short with capped downside.",
-      legs: [
-        { side: "BUY", type: "PE", strike: atm, qty: lot },
-        { side: "SELL", type: "PE", strike: atm - stepFromChain * 2, qty: lot },
-      ],
-      meta: [`DTE ${dte}`, "Net debit"],
-    });
-  }
-
-  if (trend === "sideways" && atm != null && cards.length < 3) {
-    cards.push({
-      name: "Iron Butterfly",
-      bias: "neutral",
-      rationale: "Sideways action. Tighter than a condor — higher credit, narrower profit zone.",
-      legs: [
-        { side: "SELL", type: "CE", strike: atm, qty: lot },
-        { side: "BUY", type: "CE", strike: atm + stepFromChain * 3, qty: lot },
-        { side: "SELL", type: "PE", strike: atm, qty: lot },
-        { side: "BUY", type: "PE", strike: atm - stepFromChain * 3, qty: lot },
-      ],
-      meta: [`DTE ${dte}`, "Defined risk"],
-    });
-  }
-
-  return cards;
-}
-
-function renderBuilder(ctx) {
-  const grid = document.getElementById("builder-grid");
-  const cards = buildStrategies(ctx);
-  if (cards.length === 0) {
-    grid.innerHTML = '<div class="builder-empty">No setups match the current market state. Try refreshing during market hours.</div>';
+  let scenarioData = null;
+  try {
+    scenarioData = await fetchJSON(API.scenario(state.instrument));
+  } catch (err) {
+    container.innerHTML = `<div class="builder-empty">Could not load scenario: ${err.message}</div>`;
     return;
   }
-  grid.innerHTML = cards.map(c => `
-    <div class="strategy-card">
-      <div class="strategy-header">
-        <span class="strategy-name">${c.name}</span>
-        <span class="strategy-bias ${c.bias}">${c.bias}</span>
+
+  const scenario = scenarioData.scenario || ctx.scenario || "neutral_rangebound";
+  const label = SCENARIO_LABELS[scenario] || scenario;
+  const primary = scenarioData.primary_strategy || "";
+  const reasoning = scenarioData.reasoning || "";
+  const alternatives = scenarioData.alternatives || [];
+
+  function buildCard(name, isPrimary) {
+    const msg = `Build the ${name} trade for ${state.instrument} right now using current market data. Follow the output format exactly.`;
+    return `
+      <div class="strategy-card${isPrimary ? " strategy-card-primary" : ""}">
+        <div class="strategy-header">
+          <span class="strategy-name">${name}</span>
+          ${isPrimary ? '<span class="strategy-badge">Primary</span>' : '<span class="strategy-badge strategy-badge-alt">Alternative</span>'}
+        </div>
+        ${isPrimary ? `<div class="strategy-rationale">${reasoning}</div>` : ""}
+        <button class="btn btn-build" data-msg="${msg.replace(/"/g, "&quot;")}">Build this trade</button>
       </div>
-      <div class="strategy-rationale">${c.rationale}</div>
-      <div class="strategy-legs">
-        ${c.legs.map(l => `
-          <div class="strategy-leg">
-            <span><span class="strategy-leg-side ${l.side}">${l.side}</span> ${l.type} ${fmt.int(l.strike)}</span>
-            <span>${l.qty}×</span>
-          </div>
-        `).join("")}
-      </div>
-      <div class="strategy-meta">
-        ${c.meta.map(m => `<span>${m}</span>`).join("")}
-      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="scenario-banner">
+      <span class="scenario-label">Active scenario:</span>
+      <span class="scenario-name">${label}</span>
     </div>
-  `).join("");
+    ${buildCard(primary, true)}
+    ${alternatives.map(alt => buildCard(alt, false)).join("")}
+  `;
+
+  container.querySelectorAll(".btn-build").forEach(btn => {
+    btn.addEventListener("click", () => {
+      sendChatMessage(btn.dataset.msg);
+    });
+  });
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -421,7 +341,7 @@ async function refreshAll() {
     renderSignals(ctx);
     renderTechnicals(ctx);
     renderChain(ctx);
-    renderBuilder(ctx);
+    await renderBuilder(ctx);
     renderPositions(positions);
     renderCapital(positions);
   } catch (err) {

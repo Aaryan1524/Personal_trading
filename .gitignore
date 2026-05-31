@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+token.json
+data_store/trades.json
+data_store/iv_history.json
