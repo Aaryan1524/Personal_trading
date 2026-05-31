@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+kiteconnect
+anthropic
+httpx
+python-dotenv
+pandas
+numpy
