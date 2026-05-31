@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280" />
+  <title>nifty-ai</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">nifty-ai</div>
+
+    <div class="instrument-toggle" id="instrument-toggle">
+      <button class="active" data-instrument="NIFTY">NIFTY</button>
+      <button data-instrument="BANKNIFTY">BANKNIFTY</button>
+    </div>
+
+    <div class="topbar-stats">
+      <div class="stat">
+        <span class="stat-label">Spot</span>
+        <span class="stat-value" id="topbar-spot">—</span>
+        <span class="stat-change" id="topbar-change"></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">ATM</span>
+        <span class="stat-value" id="topbar-atm">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">DTE</span>
+        <span class="stat-value" id="topbar-dte">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">India VIX</span>
+        <span class="stat-value" id="topbar-vix">—</span>
+      </div>
+      <div class="stat stat-meta">
+        <span class="stat-label">Refreshed</span>
+        <span class="stat-value" id="topbar-refreshed">—</span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
+      <button class="btn btn-primary" id="log-trade-btn">Log Trade</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel panel-left">
+      <section class="card">
+        <h3 class="card-title">Signals</h3>
+        <div class="signals">
+          <div class="signal">
+            <div class="signal-row">
+              <span class="signal-label">IV Rank</span>
+              <span class="signal-value" id="sig-iv">—</span>
+            </div>
+            <span class="signal-interp" id="sig-iv-interp">—</span>
+          </div>
+          <div class="signal">
+            <div class="signal-row">
+              <span class="signal-label">PCR</span>
+              <span class="signal-value" id="sig-pcr">—</span>
+            </div>
+            <span class="signal-interp" id="sig-pcr-interp">—</span>
+          </div>
+          <div class="signal">
+            <div class="signal-row">
+              <span class="signal-label">Trend</span>
+              <span class="signal-value" id="sig-trend">—</span>
+            </div>
+            <span class="signal-interp" id="sig-trend-interp">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="card-title">Technicals</h3>
+        <dl class="kv">
+          <dt>EMA 20</dt><dd id="t-ema20">—</dd>
+          <dt>EMA 50</dt><dd id="t-ema50">—</dd>
+          <dt>Support 1</dt><dd id="t-sup1">—</dd>
+          <dt>Support 2</dt><dd id="t-sup2">—</dd>
+          <dt>Resistance 1</dt><dd id="t-res1">—</dd>
+          <dt>Resistance 2</dt><dd id="t-res2">—</dd>
+          <dt>Max pain</dt><dd id="t-maxpain">—</dd>
+        </dl>
+        <div class="walls">
+          <div class="wall wall-ce">
+            <span class="wall-label">CE walls</span>
+            <span class="wall-value" id="t-ce-walls">—</span>
+          </div>
+          <div class="wall wall-pe">
+            <span class="wall-label">PE walls</span>
+            <span class="wall-value" id="t-pe-walls">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="card-title">Open positions</h3>
+        <div class="positions" id="positions-list">
+          <div class="positions-empty">No open positions</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="card-title">Capital</h3>
+        <dl class="kv">
+          <dt>Available margin</dt><dd id="cap-avail">₹50,000</dd>
+          <dt>Deployed</dt><dd id="cap-deployed">₹0</dd>
+          <dt>Session P&amp;L</dt><dd id="cap-pnl">₹0</dd>
+          <dt>Max risk / trade</dt><dd>₹5,000</dd>
+        </dl>
+      </section>
+    </aside>
+
+    <section class="panel panel-middle">
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="chain">Option Chain</button>
+        <button class="tab" data-tab="builder">Strategy Builder</button>
+        <button class="tab" data-tab="payoff">Payoff Chart</button>
+      </nav>
+
+      <div class="tab-pane active" id="pane-chain">
+        <div class="chain-scroll">
+          <table class="chain">
+            <thead>
+              <tr class="chain-side-header">
+                <th colspan="6" class="ce-side">CALL</th>
+                <th class="strike-col"></th>
+                <th colspan="6" class="pe-side">PUT</th>
+              </tr>
+              <tr class="chain-col-header">
+                <th>OI</th><th>Vol</th><th>Δ</th><th>Θ</th><th>IV</th><th>LTP</th>
+                <th class="strike-col">Strike</th>
+                <th>LTP</th><th>IV</th><th>Δ</th><th>Θ</th><th>Vol</th><th>OI</th>
+              </tr>
+            </thead>
+            <tbody id="chain-body">
+              <tr><td colspan="13" class="chain-empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-builder">
+        <div class="builder-grid" id="builder-grid">
+          <div class="builder-empty">Load market data to see suggested strategies.</div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-payoff">
+        <div class="payoff-placeholder">
+          <div class="payoff-axes">
+            <div class="payoff-text">Payoff chart</div>
+            <div class="payoff-sub">Pick a strategy in the builder to render its P&amp;L profile here.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel panel-right">
+      <header class="chat-header">
+        <span class="chat-title">Claude</span>
+        <button class="btn btn-ghost btn-small" id="chat-clear-btn">Clear</button>
+      </header>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg chat-msg-assistant">
+          <div class="chat-msg-body">Ready when you are. Ask about the chain, a strategy idea, or anything you see on the dashboard.</div>
+        </div>
+      </div>
+      <form class="chat-input" id="chat-form">
+        <textarea id="chat-input" placeholder="Ask Claude — Enter to send, Shift+Enter for newline" rows="2"></textarea>
+        <button class="btn btn-primary" type="submit" id="chat-send-btn">Send</button>
+      </form>
+    </aside>
+  </main>
+
+  <div class="modal-backdrop hidden" id="trade-modal">
+    <div class="modal">
+      <header class="modal-header">
+        <h3>Log a trade</h3>
+        <button class="modal-close" id="trade-modal-close">×</button>
+      </header>
+      <form id="trade-form" class="trade-form">
+        <label>Instrument
+          <select name="instrument">
+            <option value="NIFTY">NIFTY</option>
+            <option value="BANKNIFTY">BANKNIFTY</option>
+          </select>
+        </label>
+        <label>Strategy
+          <input name="strategy" placeholder="e.g. Iron Condor 25000/25200" required />
+        </label>
+        <label>Legs (one per line: BUY|SELL CE|PE STRIKE QTY @PREMIUM)
+          <textarea name="legs" rows="4" placeholder="SELL CE 25200 50 @120&#10;BUY CE 25400 50 @50"></textarea>
+        </label>
+        <label>Notes
+          <textarea name="notes" rows="2" placeholder="Setup, rationale, exit plan…"></textarea>
+        </label>
+        <div class="trade-form-actions">
+          <button type="button" class="btn btn-ghost" id="trade-cancel-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save trade</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
