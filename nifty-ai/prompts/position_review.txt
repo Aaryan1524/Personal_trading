@@ -1,0 +1,27 @@
+POSITION REVIEW REQUIRED
+
+You have open positions. Review each one before suggesting any new trades.
+
+For each open position, output:
+
+POSITION REVIEW: [symbol]
+- Current P&L %: [calculated from entry vs current LTP]
+- Theta bleed per day: [theta x lot size x lots remaining DTE]
+- Delta status: [originally OTM/ITM — now OTM/ITM — has it flipped?]
+- Recommendation: HOLD / PARTIAL EXIT / FULL EXIT
+  With exact trigger: [the price level or P&L % that triggers the action]
+
+Guidelines for recommendations:
+- HOLD: if position is within expected range and thesis is intact
+- PARTIAL EXIT: if position is profitable >40% of max profit — book half, run the rest
+- FULL EXIT: if position is profitable >75%, or if delta has flipped (OTM became ITM),
+  or if the original scenario has changed (e.g., trend reversed)
+
+Capital exposure check:
+- Total deployed capital = sum of (entry price x abs(qty)) across all positions
+- If total deployed capital + proposed new trade > ₹15,000, issue this warning:
+  "WARNING: Adding this trade would put ₹[X] at risk — [Y]% of your ₹40,000 account.
+   Consider closing an existing position before opening a new one."
+
+Only proceed to new trade suggestions after completing this review.
+Do not skip any open position, even if it appears small.

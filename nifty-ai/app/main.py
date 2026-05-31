@@ -5,11 +5,12 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .chat import _sessions, send_message
-from .context import build_market_context, build_system_prompt
+from .context import _SCENARIO_STRATEGY, build_market_context, build_system_prompt, detect_scenario
 from .data.kite import TOKEN_PATH
 from .trades.log import append_trade, list_trades
 from .trades.positions import get_positions
@@ -44,6 +45,34 @@ def get_market(instrument: str = Query(...)):
         return build_market_context(instrument)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[ERROR] /api/market: {type(e).__name__}: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": True, "message": "Market data unavailable — check Kite connection or re-run auth.py", "detail": str(e)},
+        )
+
+
+@app.get("/api/scenario")
+def get_scenario(instrument: str = Query(...)):
+    try:
+        ctx = build_market_context(instrument)
+        scenario = detect_scenario(ctx)
+        info = _SCENARIO_STRATEGY.get(scenario, {})
+        return {
+            "scenario": scenario,
+            "primary_strategy": info.get("primary", ""),
+            "reasoning": info.get("reasoning", ""),
+            "alternatives": info.get("alternatives", []),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[ERROR] /api/scenario: {type(e).__name__}: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": True, "message": "Market data unavailable — check Kite connection or re-run auth.py", "detail": str(e)},
+        )
 
 
 class ChatRequest(BaseModel):
@@ -56,11 +85,17 @@ class ChatRequest(BaseModel):
 def post_chat(req: ChatRequest):
     try:
         context = build_market_context(req.instrument)
+        system_prompt = build_system_prompt(context)
+        response = send_message(req.session_id, req.message, system_prompt)
+        return {"response": response, "session_id": req.session_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    system_prompt = build_system_prompt(context)
-    response = send_message(req.session_id, req.message, system_prompt)
-    return {"response": response, "session_id": req.session_id}
+    except Exception as e:
+        print(f"[ERROR] /api/chat: {type(e).__name__}: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": True, "message": "Market data unavailable — check Kite connection or re-run auth.py", "detail": str(e)},
+        )
 
 
 class ClearRequest(BaseModel):

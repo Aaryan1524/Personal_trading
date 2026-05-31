@@ -1,0 +1,29 @@
+SCENARIO CONTEXT: Neutral / Range-bound (IV rank 40-60%, price between S1 and R1)
+
+IV is in the middle range and price is consolidating between support and resistance.
+No strong directional bias — this is an Iron Condor environment.
+
+PRIMARY STRATEGY: Iron Condor
+
+Reasoning:
+- Mid-range IV and sideways price action favor theta decay plays
+- Iron Condor collects premium from both sides with defined risk
+- S1 and R1 define the natural wing placement
+
+Execution rules:
+- Sell CE at R1 (resistance level)
+- Buy CE at R1 + 200 (Nifty) or R1 + 500 (BankNifty) for protection
+- Sell PE at S1 (support level)
+- Buy PE at S1 - 200 (Nifty) or S1 - 500 (BankNifty) for protection
+- Verify: total net premium collected per lot must exceed ₹80/lot minimum
+  If it doesn't, the trade is not worth taking — widen the spread or skip
+
+Key risk: A breakout in either direction beyond the short strikes.
+Set a hard stop if spot closes beyond either short strike.
+
+Sizing check: compute exact premium collected before entering.
+Net credit = (CE premium sold - CE premium bought) + (PE premium sold - PE premium bought)
+If net credit x lot size x lots < ₹1,000 total, skip the trade — not enough reward.
+
+Adjustment rule: if one side gets tested, roll the untested side closer to collect more premium
+and bring the position delta back to neutral.

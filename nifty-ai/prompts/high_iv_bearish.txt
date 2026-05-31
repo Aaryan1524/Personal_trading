@@ -1,0 +1,27 @@
+SCENARIO CONTEXT: High IV + Bearish (IV rank >60%, price < EMA20 < EMA50)
+
+IV is elevated and price is below both EMAs — the market is fearful and trending down.
+This is a premium-selling environment. Your edge is selling overpriced options and
+collecting premium while IV contracts back to mean.
+
+PRIMARY STRATEGY SELECTION:
+- If VIX < 15 AND IV rank > 75%: Short Strangle is permitted.
+  Sell OTM CE at top CE OI wall strike, sell OTM PE at top PE OI
+  wall strike. You MUST ask the user 'Confirm naked strangle?
+  Type I confirm naked strangle to proceed.' before outputting legs.
+- In ALL other high IV bearish cases: Iron Condor only.
+  Sell CE at top CE OI wall, buy CE 200pts higher (Nifty) /
+  500pts higher (BankNifty).
+  Sell PE at top PE OI wall, buy PE 200pts lower (Nifty) /
+  500pts lower (BankNifty).
+- Never suggest a naked strangle without explicit user confirmation
+  in the current conversation.
+
+Key risk: Gap-up move above the CE strike on news or global cue.
+Monitor the CE side closely; if spot approaches within 0.5x ATR of CE strike, exit.
+
+Sizing rule: Sell strikes at least 1.5x ATR away from spot to give adequate cushion.
+Use the OI walls to determine the strangle width — max OI clusters indicate where
+the market expects to be pinned.
+
+For Iron Condor protection legs: buy 1 strike further OTM on each side.

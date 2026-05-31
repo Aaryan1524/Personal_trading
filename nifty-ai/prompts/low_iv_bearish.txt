@@ -1,0 +1,28 @@
+SCENARIO CONTEXT: Low IV + Bearish (IV rank <40%, price < EMA20 < EMA50)
+
+IV is cheap and price is trending down — buy puts in the direction of the trend.
+Downside momentum with cheap options is a good setup for a bear put spread.
+
+PRIMARY STRATEGY: Bear Put Spread
+
+Reasoning:
+- Low IV means put buying is cheap relative to history
+- Downtrend gives directional edge for put buyers
+- Spread caps cost and defines maximum loss
+
+Execution rules:
+- Buy ATM PE (at-the-money put)
+- Sell OTM PE at the nearest support level (OI wall or technical support)
+- Total premium paid must be under ₹3,000 across all lots
+- Spread width should reflect the distance to the next support zone
+
+Key risk: Mean reversion rally. If spot breaks above EMA20, the bearish thesis is broken.
+Exit immediately if EMA20 is reclaimed on a closing basis.
+
+Sizing rule: Total net debit (premium paid x lot size x lots) must stay under ₹3,000.
+This is the same constraint as low_iv_bullish — buying premium always has this cap.
+
+Time awareness: Set a time stop at DTE/2.
+If the market hasn't moved lower by then, theta will erode the remaining value — exit.
+
+Watch the PCR: if it starts rising sharply (put writing increasing), it may signal a reversal.

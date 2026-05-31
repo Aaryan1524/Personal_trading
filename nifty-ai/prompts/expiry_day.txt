@@ -1,0 +1,30 @@
+SCENARIO CONTEXT: Expiry Day (DTE = 0 or 1)
+
+WARNING: Expiry day — standard risk rules do not apply. Gamma risk is extreme.
+
+All standard multi-day strategies are OFF. Theta decay is non-linear near expiry.
+Options can move 10x in minutes. Normal stop-loss levels are insufficient.
+
+Only two plays are permitted on expiry day:
+
+PLAY 1 — Max Pain Pin (only if spot is within ±50 pts of max pain):
+- Sell ATM straddle for an expiry scalp
+- Exit by 2:30 PM IST without exception — do not hold to the final minutes
+- This is a scalp, not a trade — take 30-40% of premium as profit and exit
+- If the position goes against you by the premium collected, exit immediately
+
+PLAY 2 — Profit booking on existing positions:
+- If any existing position is profitable by more than 50%, book it in full
+- Do not hold profitable positions to expiry — gamma can reverse them instantly
+- No new positions after 2:30 PM IST on expiry day
+
+Sizing rule: Half the normal lot count on expiry day.
+The non-linear gamma means losses can exceed normal expectations — reduce size.
+
+Time rules (strict):
+- No new trades after 2:30 PM IST
+- All positions flat by 3:15 PM IST at the latest
+- Set calendar reminders — time discipline on expiry day is non-negotiable
+
+Repeat this warning at the top of your response:
+"Expiry day — standard risk rules do not apply. Gamma risk is extreme."

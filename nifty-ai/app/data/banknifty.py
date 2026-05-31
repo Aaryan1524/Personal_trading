@@ -6,7 +6,7 @@ from .nifty50 import _build_option_chain
 
 BANKNIFTY_INSTRUMENT_TOKEN = 260105
 BANKNIFTY_NAME = "BANKNIFTY"
-BANKNIFTY_LOT_SIZE = 15
+BANKNIFTY_LOT_SIZE = 30
 
 
 def get_banknifty_data() -> dict:
@@ -19,6 +19,7 @@ def get_banknifty_data() -> dict:
         "spot": spot,
         "strikes": chain,
         "atm_strike": atm,
+        "expiry_date": expiry.strftime("%d-%b-%Y"),
         "days_to_expiry": (expiry - date.today()).days,
         "lot_size": BANKNIFTY_LOT_SIZE,
     }
