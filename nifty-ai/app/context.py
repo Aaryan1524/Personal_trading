@@ -105,13 +105,13 @@ def _trend(last_close: float, ema_20: float, ema_50: float) -> str:
 
 def detect_scenario(context: dict) -> str:
     dte = context.get("days_to_expiry", 999)
-    vix = context.get("india_vix") or 0
+    vix = context.get("india_vix")  # None means NSE scrape failed — do not default to 0
     iv_rank = (context.get("technicals") or {}).get("iv_rank") or 0
     trend = context.get("trend", "sideways")
 
     if dte <= 1:
         return "expiry_day"
-    if vix > 18:
+    if vix is not None and vix > 18:
         return "high_vix"
     if iv_rank > 60 and trend == "bearish":
         return "high_iv_bearish"
@@ -131,12 +131,12 @@ def load_scenario_prompt(scenario: str) -> str:
     return f"[Scenario prompt for '{scenario}' not found]"
 
 
-def build_market_context(instrument: str) -> dict:
+def build_market_context(instrument: str, target_expiry=None) -> dict:
     instrument = instrument.upper()
     if instrument == "NIFTY":
-        data = get_nifty50_data()
+        data = get_nifty50_data(target_expiry)
     elif instrument == "BANKNIFTY":
-        data = get_banknifty_data()
+        data = get_banknifty_data(target_expiry)
     else:
         raise ValueError(f"Unknown instrument: {instrument!r} (expected 'NIFTY' or 'BANKNIFTY')")
 
@@ -152,6 +152,7 @@ def build_market_context(instrument: str) -> dict:
         "expiry_date": data["expiry_date"],
         "days_to_expiry": data["days_to_expiry"],
         "lot_size": data["lot_size"],
+        "expiries": data.get("expiries", []),
         "trend": _trend(tech["last_close"], tech["ema_20"], tech["ema_50"]),
         "technicals": {
             "last_close": tech["last_close"],
@@ -243,7 +244,8 @@ def build_system_prompt(context: dict) -> str:
         f"Expiry: {context.get('expiry_date', 'n/a')}   DTE: {context['days_to_expiry']}   Lot: {context['lot_size']}",
         f"Trend: {context['trend']}   EMA20: {_fmt(t['ema_20'])}   EMA50: {_fmt(t['ema_50'])}",
         f"Support: {_fmt(t['support'])}   Resistance: {_fmt(t['resistance'])}",
-        f"IV Rank (52w percentile): {_fmt(t['iv_rank'], 1)}   India VIX: {_fmt(context['india_vix'])}",
+        f"IV Rank (52w percentile): {_fmt(t['iv_rank'], 1)}   India VIX: {_fmt(context['india_vix'])}"
+        + ("   [VIX unavailable — treat as elevated risk, use defined-risk only]" if context['india_vix'] is None else ""),
         f"PCR: {_fmt(context['pcr'], 2)}   Max pain: {_fmt(context['max_pain'], 0)}",
         f"CE OI walls: {_fmt_walls(context['oi_walls']['ce'])}",
         f"PE OI walls: {_fmt_walls(context['oi_walls']['pe'])}",
@@ -254,7 +256,7 @@ def build_system_prompt(context: dict) -> str:
     chain_lines = _fmt_chain_slice(context.get("strikes", []), context.get("atm_strike"))
     if chain_lines:
         market_lines.append(
-            "OPTION CHAIN (ATM ±5 strikes — use ONLY these strikes and "
+            "OPTION CHAIN (ATM ±15 strikes — use ONLY these strikes and "
             "these premiums when building trade legs):"
         )
         market_lines.extend(chain_lines)

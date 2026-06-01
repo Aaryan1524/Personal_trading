@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Users/aaryan/Desktop/TRADING BOT/Personal_trading/.venv/bin/python" "$0" "$@"
+'''exec' "/Users/aaryan/Desktop/TRADING BOT/Personal_trading/nifty-ai/.venv/bin/python3.12" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re

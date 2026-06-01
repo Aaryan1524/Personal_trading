@@ -27,3 +27,8 @@ If net credit x lot size x lots < ₹1,000 total, skip the trade — not enough 
 
 Adjustment rule: if one side gets tested, roll the untested side closer to collect more premium
 and bring the position delta back to neutral.
+
+Capital check (mandatory before outputting legs):
+Compute: max loss = (wing width in points - net credit collected) x lot size x lots.
+Max loss must be ≤ ₹4,000. If the 200pt/500pt wings produce max loss > ₹4,000,
+narrow the wings or reduce lots until max loss fits. Show your calculation explicitly.

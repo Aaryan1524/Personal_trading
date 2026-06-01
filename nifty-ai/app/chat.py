@@ -8,7 +8,7 @@ from .session import SessionManager
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-_MODEL = "claude-sonnet-4-5"
+_MODEL = "claude-sonnet-4-6"
 _MAX_TOKENS = 2048
 
 _sessions = SessionManager()

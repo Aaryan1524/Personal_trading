@@ -25,3 +25,8 @@ Use the OI walls to determine the strangle width — max OI clusters indicate wh
 the market expects to be pinned.
 
 For Iron Condor protection legs: buy 1 strike further OTM on each side.
+
+Capital check (mandatory before outputting legs):
+Compute: max loss = (wing width in points - net credit collected) x lot size x lots.
+Max loss must be ≤ ₹4,000. If the prescribed wing width produces max loss > ₹4,000,
+narrow the wings or reduce lots until max loss fits. Show your calculation explicitly.

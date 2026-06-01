@@ -1,5 +1,5 @@
 # Nifty 50 data fetchers
-from datetime import date
+from datetime import date, timedelta
 from math import erf, exp, log, pi, sqrt
 
 from .kite import get_kite_client
@@ -62,7 +62,36 @@ def _greeks(opt_type: str, S: float, K: float, T: float, r: float, sigma):
     return {"delta": delta, "gamma": gamma, "theta": theta, "vega": vega}
 
 
-def _build_option_chain(kite, index_name: str, spot: float):
+def _is_monthly_expiry(d: date) -> bool:
+    return (d + timedelta(days=7)).month != d.month
+
+
+def _get_expiries(index_name: str) -> list[dict]:
+    kite = get_kite_client()
+    today = date.today()
+    instruments = kite.instruments("NFO")
+    expiry_dates = sorted({
+        i["expiry"] for i in instruments
+        if i["name"] == index_name
+        and i["instrument_type"] in ("CE", "PE")
+        and i["expiry"] >= today
+    })
+    result = []
+    for d in expiry_dates[:10]:
+        result.append({
+            "date": d.strftime("%d-%b-%Y"),
+            "label": d.strftime("%d %b %Y"),
+            "type": "M" if _is_monthly_expiry(d) else "W",
+            "dte": (d - today).days,
+        })
+    return result
+
+
+def get_nifty_expiries() -> list[dict]:
+    return _get_expiries(NIFTY_NAME)
+
+
+def _build_option_chain(kite, index_name: str, spot: float, target_expiry: date | None = None):
     today = date.today()
     instruments = kite.instruments("NFO")
     rows = [
@@ -72,9 +101,24 @@ def _build_option_chain(kite, index_name: str, spot: float):
         and i["expiry"] >= today
     ]
     if not rows:
-        return [], today
+        return [], today, []
 
-    nearest_expiry = min(r["expiry"] for r in rows)
+    available_dates = sorted({r["expiry"] for r in rows})
+    expiry_list = [
+        {
+            "date": d.strftime("%d-%b-%Y"),
+            "label": d.strftime("%d %b %Y"),
+            "type": "M" if _is_monthly_expiry(d) else "W",
+            "dte": (d - today).days,
+        }
+        for d in available_dates[:10]
+    ]
+
+    available_set = set(available_dates)
+    if target_expiry is not None and target_expiry in available_set:
+        nearest_expiry = target_expiry
+    else:
+        nearest_expiry = available_dates[0]
     rows = [r for r in rows if r["expiry"] == nearest_expiry]
 
     symbols = [f"NFO:{r['tradingsymbol']}" for r in rows]
@@ -99,14 +143,14 @@ def _build_option_chain(kite, index_name: str, spot: float):
         entry[opt_type] = leg
 
     chain = sorted(by_strike.values(), key=lambda x: x["strike"])
-    return chain, nearest_expiry
+    return chain, nearest_expiry, expiry_list
 
 
-def get_nifty50_data() -> dict:
+def get_nifty50_data(target_expiry: date | None = None) -> dict:
     kite = get_kite_client()
     q = kite.quote([NIFTY_INSTRUMENT_TOKEN])
     spot = float(q[str(NIFTY_INSTRUMENT_TOKEN)]["last_price"])
-    chain, expiry = _build_option_chain(kite, NIFTY_NAME, spot)
+    chain, expiry, expiry_list = _build_option_chain(kite, NIFTY_NAME, spot, target_expiry)
     atm = min((leg["strike"] for leg in chain), key=lambda k: abs(k - spot)) if chain else None
     return {
         "spot": spot,
@@ -115,4 +159,5 @@ def get_nifty50_data() -> dict:
         "expiry_date": expiry.strftime("%d-%b-%Y"),
         "days_to_expiry": (expiry - date.today()).days,
         "lot_size": NIFTY_LOT_SIZE,
+        "expiries": expiry_list,
     }
