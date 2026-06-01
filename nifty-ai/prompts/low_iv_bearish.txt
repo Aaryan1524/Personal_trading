@@ -11,18 +11,25 @@ Reasoning:
 - Spread caps cost and defines maximum loss
 
 Execution rules:
-- Buy ATM PE (at-the-money put)
-- Sell OTM PE at the nearest support level (OI wall or technical support)
-- Total premium paid must be under ₹3,000 across all lots
-- Spread width should reflect the distance to the next support zone
+- Primary (max convexity): Long ATM or slightly-ITM PE outright when the downtrend is
+  strong and the premium fits the 7% risk cap. A long put's max loss is the premium
+  paid — highest-upside, defined-risk growth trade for a falling market.
+- Alternative (cheaper, capped upside): Bear Put Spread — buy ATM PE, sell OTM PE at
+  the nearest support / OI wall — only when an outright put exceeds the 7% cap.
 
-Key risk: Mean reversion rally. If spot breaks above EMA20, the bearish thesis is broken.
-Exit immediately if EMA20 is reclaimed on a closing basis.
+Sizing rule: Max loss = net debit x lot size x lots. This must be ≤ the
+"Max risk this trade (7%)" figure shown in MARKET CONTEXT. Size lots from that live
+number, never a fixed rupee figure.
 
-Sizing rule: Total net debit (premium paid x lot size x lots) must stay under ₹3,000.
-This is the same constraint as low_iv_bullish — buying premium always has this cap.
+Profit management (let the winner run — this is where account growth comes from):
+- Book 50% of the position at +100% of premium paid.
+- Move the stop on the remainder to breakeven, then trail it at +50% of running profit.
+- Do NOT close the whole position at the first target. A fast breakdown is the
+  asymmetric payoff this account is built to capture.
 
-Time awareness: Set a time stop at DTE/2.
-If the market hasn't moved lower by then, theta will erode the remaining value — exit.
+Key risk: Mean reversion rally. If spot reclaims EMA20 on a closing basis, the bearish
+thesis is broken — exit immediately.
+Time stop: if the market hasn't moved lower by the halfway point to expiry, exit
+regardless of P&L — theta will erode the remaining value.
 
 Watch the PCR: if it starts rising sharply (put writing increasing), it may signal a reversal.

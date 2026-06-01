@@ -11,16 +11,26 @@ POSITION REVIEW: [symbol]
 - Recommendation: HOLD / PARTIAL EXIT / FULL EXIT
   With exact trigger: [the price level or P&L % that triggers the action]
 
-Guidelines for recommendations:
+Guidelines for recommendations — SHORT (premium-selling) positions:
 - HOLD: if position is within expected range and thesis is intact
-- PARTIAL EXIT: if position is profitable >40% of max profit — book half, run the rest
-- FULL EXIT: if position is profitable >75%, or if delta has flipped (OTM became ITM),
-  or if the original scenario has changed (e.g., trend reversed)
+- PARTIAL EXIT: if profitable >40% of max profit — book half, run the rest
+- FULL EXIT: if profitable >75% of max profit, or delta has flipped (OTM became ITM),
+  or the original scenario has changed (e.g. trend reversed). On short premium, capturing
+  most of the decay early and redeploying beats squeezing the last few rupees.
 
-Capital exposure check:
-- Total deployed capital = sum of (entry price x abs(qty)) across all positions
-- If total deployed capital + proposed new trade > ₹15,000, issue this warning:
-  "WARNING: Adding this trade would put ₹[X] at risk — [Y]% of your ₹40,000 account.
+Guidelines for recommendations — LONG (buying) positions:
+- These are the growth engines — let winners run. Do NOT full-exit a long simply because
+  it is up 75%.
+- PARTIAL EXIT: book 50% at +100% of premium paid; move the stop on the remainder to
+  breakeven, then trail it at +50% of running profit.
+- FULL EXIT: only if the trend/thesis breaks (e.g. EMA20 reclaimed against a long put),
+  or the DTE/2 time stop is hit with no move, or the trailing stop is triggered.
+
+Capital exposure check (scales with the account — use live equity):
+- Total deployed capital = sum of (entry price x abs(qty)) across all positions.
+- If total deployed capital + the proposed new trade's risk would exceed 35% of the
+  current "Account equity" shown in MARKET CONTEXT, issue this warning:
+  "WARNING: Adding this trade would put ₹[X] at risk — [Y]% of your ₹[equity] account.
    Consider closing an existing position before opening a new one."
 
 Only proceed to new trade suggestions after completing this review.

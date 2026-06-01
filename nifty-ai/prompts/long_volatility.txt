@@ -1,0 +1,42 @@
+SCENARIO CONTEXT: Long Volatility (IV rank < 25%, price coiling sideways)
+
+IV rank is very low and price is range-bound between the EMAs — options are cheap and a
+volatility expansion is statistically overdue. This is a PRIMARY GROWTH ENGINE: a
+defined-risk, convex bet that pays multiples of the premium when the market finally moves,
+in either direction.
+
+PRIMARY STRATEGY: Long Straddle (buy ATM CE + ATM PE)
+- Use when you expect a big move but have no directional conviction.
+- Max loss = total premium paid (both legs). This must be ≤ the "Max risk this trade (7%)"
+  figure in MARKET CONTEXT.
+
+ALTERNATIVE: Long Strangle (buy OTM CE + OTM PE, ~1 strike either side of ATM)
+- Cheaper than a straddle, needs a bigger move to pay, but the lower debit means the 7%
+  cap allows more lots. Use when an outright straddle's debit is too rich for the cap.
+
+When to lean directional instead:
+- If price is pressing the top of the range / a resistance OI wall, a long ATM CE alone
+  is cheaper and higher-octane than a full straddle.
+- If pressing the bottom / a support wall, a long ATM PE alone.
+
+Sizing rule: Max loss = total net debit x lot size x lots ≤ 7% of equity. Size lots from
+the live "Max risk this trade (7%)" figure, never a fixed rupee number.
+
+Why this fits the growth mandate:
+- Long volatility from a low-IV base is positively skewed — small, frequent losses (theta)
+  in exchange for occasional large wins (an IV pop + directional move that can return
+  3-10x the premium). A handful of these per year drive the bulk of aggressive account
+  growth.
+
+Profit management (critical — do not give back the move):
+- On an IV pop or sharp directional move, book at least 50% of the winning leg at +100%.
+- Trail a stop on the remainder; let a trending leg run.
+- The loser leg: let it expire or sell it for residual value to recover some theta.
+
+Key risk: Time decay with no move. Both legs bleed theta every day the market stays quiet.
+Time stop: if neither leg is up by the halfway point to expiry and IV has not expanded,
+exit the whole position and recycle the capital — do not "wait and hope."
+
+Best deployed ahead of known catalysts (Budget, RBI policy, major data, expiry-week
+squeezes) when IV is still cheap. If the operator names an upcoming event, size up toward
+the cap; in pure quiet drift with no catalyst, prefer a strangle or sit out.

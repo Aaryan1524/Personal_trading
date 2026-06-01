@@ -269,6 +269,7 @@ const SCENARIO_LABELS = {
   high_iv_bullish:   "High IV Bullish — sell puts with trend",
   low_iv_bullish:    "Low IV Bullish — buy cheap calls",
   low_iv_bearish:    "Low IV Bearish — buy cheap puts",
+  long_volatility:   "Long Volatility — cheap options, bet on a move",
   neutral_rangebound:"Neutral / Range-bound — collect theta",
 };
 
