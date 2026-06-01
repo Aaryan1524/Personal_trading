@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from .chat import _sessions, send_message
 from .context import _SCENARIO_STRATEGY, build_market_context, build_system_prompt, detect_scenario
 from .data.banknifty import get_banknifty_expiries
+from .data.events import get_upcoming_events
 from .data.kite import TOKEN_PATH
 from .data.nifty50 import get_nifty_expiries
 from .trades.log import append_trade, list_trades
@@ -68,6 +69,20 @@ def get_expiries(instrument: str = Query(...)):
         return JSONResponse(
             status_code=503,
             content={"error": True, "message": "Market data unavailable — check Kite connection or re-run auth.py", "detail": str(e)},
+        )
+
+
+@app.get("/api/events")
+def get_events_endpoint(instrument: str = Query("NIFTY"), days: int = Query(30)):
+    try:
+        inst = instrument.upper()
+        expiries = get_nifty_expiries() if inst != "BANKNIFTY" else get_banknifty_expiries()
+        return get_upcoming_events(expiry_list=expiries, days_ahead=days)
+    except Exception as e:
+        print(f"[ERROR] /api/events: {type(e).__name__}: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": True, "message": "Events unavailable", "detail": str(e)},
         )
 
 

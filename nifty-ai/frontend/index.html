@@ -33,6 +33,14 @@
         <span class="stat-label">India VIX</span>
         <span class="stat-value" id="topbar-vix">—</span>
       </div>
+      <div class="stat">
+        <span class="stat-label">VWAP</span>
+        <span class="stat-value" id="topbar-vwap">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Intraday</span>
+        <span class="stat-value" id="topbar-intraday">—</span>
+      </div>
       <div class="stat stat-meta">
         <span class="stat-label">Refreshed</span>
         <span class="stat-value" id="topbar-refreshed">—</span>
@@ -119,6 +127,7 @@
       <nav class="tabs" id="tabs">
         <button class="tab active" data-tab="chain">Option Chain</button>
         <button class="tab" data-tab="builder">Strategy Builder</button>
+        <button class="tab" data-tab="events">Events</button>
         <button class="tab" data-tab="payoff">Payoff Chart</button>
       </nav>
 
@@ -148,6 +157,12 @@
       <div class="tab-pane" id="pane-builder">
         <div class="builder-grid" id="builder-grid">
           <div class="builder-empty">Load market data to see suggested strategies.</div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-events">
+        <div class="events-pane" id="events-list">
+          <div class="events-empty">Loading events…</div>
         </div>
       </div>
 

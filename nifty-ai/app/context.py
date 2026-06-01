@@ -3,8 +3,9 @@ from pathlib import Path
 
 from .data.account import get_account_equity
 from .data.banknifty import get_banknifty_data
+from .data.events import event_risk_level, get_upcoming_events
 from .data.nifty50 import get_nifty50_data
-from .data.technicals import get_technicals
+from .data.technicals import get_intraday_technicals, get_technicals
 from .data.vix import get_india_vix
 from .trades.positions import get_positions
 
@@ -153,7 +154,10 @@ def build_market_context(instrument: str, target_expiry=None) -> dict:
     vix = get_india_vix()
     positions = get_positions()
     equity = get_account_equity()
+    intraday = get_intraday_technicals(_TECHNICAL_SYMBOL[instrument])
     strikes = data["strikes"]
+    expiries = data.get("expiries", [])
+    events = get_upcoming_events(expiries)
 
     ctx = {
         "instrument": instrument,
@@ -163,7 +167,7 @@ def build_market_context(instrument: str, target_expiry=None) -> dict:
         "expiry_date": data["expiry_date"],
         "days_to_expiry": data["days_to_expiry"],
         "lot_size": data["lot_size"],
-        "expiries": data.get("expiries", []),
+        "expiries": expiries,
         "trend": _trend(tech["last_close"], tech["ema_20"], tech["ema_50"]),
         "technicals": {
             "last_close": tech["last_close"],
@@ -182,6 +186,8 @@ def build_market_context(instrument: str, target_expiry=None) -> dict:
         "max_pain": _max_pain(strikes),
         "positions": positions,
         "strikes": strikes,
+        "intraday": intraday,
+        "events": events,
     }
     ctx["scenario"] = detect_scenario(ctx)
     return ctx
@@ -277,6 +283,61 @@ def build_system_prompt(context: dict) -> str:
         f"Active scenario: {scenario}",
         "",
     ]
+
+    # ── Upcoming events block ────────────────────────────────────────────────
+    events = context.get("events") or []
+    if events:
+        risk = event_risk_level(events)
+        market_lines.append("UPCOMING EVENTS (next 7 days):")
+        for ev in events:
+            market_lines.append(
+                f"  - {ev['date_str']}: {ev['name']} [{ev['impact']}] — "
+                f"{ev['days_away']} day{'s' if ev['days_away'] != 1 else ''} away. {ev['notes']}"
+            )
+        if risk == "HIGH":
+            urgent = next(e for e in events if e["impact"] == "HIGH")
+            market_lines.append(
+                f"EVENT RISK: HIGH — {urgent['name']} is {urgent['days_away']} day(s) away. "
+                "Do NOT open new naked or undefined-risk premium-selling positions. "
+                "Defined-risk spreads are acceptable but keep width narrow. "
+                "Long volatility (straddle/strangle) is actively favoured — IV is cheap "
+                "relative to the coming event and the move will reprice it."
+            )
+        elif risk == "MEDIUM":
+            market_lines.append(
+                "EVENT RISK: MEDIUM — flag the upcoming event to the user and "
+                "recommend defined-risk strategies only."
+            )
+        market_lines.append("")
+
+    # ── Intraday momentum block ──────────────────────────────────────────────
+    intraday = context.get("intraday")
+    if intraday:
+        vs_vwap = "ABOVE" if context["spot"] > intraday["vwap"] else "BELOW"
+        orb_status = {
+            "breakout": "ABOVE opening range high — bullish momentum holding",
+            "breakdown": "BELOW opening range low — bearish momentum holding",
+            "inside_range": "Inside opening range — no directional breakout yet",
+        }.get(intraday["breakout_status"], intraday["breakout_status"])
+        market_lines += [
+            f"INTRADAY MOMENTUM (15-min candles — {intraday['candle_count']} candles so far today):",
+            f"  VWAP: {_fmt(intraday['vwap'])}   Spot vs VWAP: {vs_vwap} "
+            f"({'bullish intraday' if vs_vwap == 'ABOVE' else 'bearish intraday'})",
+            f"  Opening range (9:15–9:45 IST): {_fmt(intraday['opening_range_low'])} – {_fmt(intraday['opening_range_high'])}",
+            f"  Breakout status: {orb_status}",
+            f"  9-EMA (15m): {_fmt(intraday['ema_9'])}   Day range: {_fmt(intraday['day_low'])} – {_fmt(intraday['day_high'])}",
+            f"  Intraday trend: {intraday['intraday_trend'].upper()}",
+            "  Use this to time entries: only enter a bullish trade when intraday trend is "
+            "BULLISH or a bearish trade when BEARISH. If intraday trend conflicts with the "
+            "daily scenario, flag it and wait for alignment.",
+            "",
+        ]
+    else:
+        market_lines += [
+            "INTRADAY MOMENTUM: market not yet open or no candles available — "
+            "base entry decisions on daily context only.",
+            "",
+        ]
 
     chain_lines = _fmt_chain_slice(context.get("strikes", []), context.get("atm_strike"))
     if chain_lines:
