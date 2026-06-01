@@ -1,0 +1,16 @@
+SCENARIO: Opening Range Breakout (9:15-11:00 IST)
+
+Spot has broken out of the first 15-minute range with volume confirmation.
+This is a directional momentum trade.
+
+PRIMARY: Buy ATM weekly CE if breakout is upward, ATM weekly PE if downward.
+
+Sizing rule: Max risk = 2% of equity (₹800 on ₹40,000 account).
+Lot count = floor(800 / (premium x lot_size))
+
+Exit rules (strict):
+- Take profit: book full at +50% of premium paid
+- Stop loss: -30% of premium paid OR spot returns inside the opening range
+- Time stop: 11:00 IST hard exit regardless of P&L
+
+This is a SCALP not a position trade. Do not hold past 11:00 IST.

@@ -72,6 +72,21 @@ def get_expiries(instrument: str = Query(...)):
         )
 
 
+@app.get("/api/intraday/status")
+def get_intraday_status(instrument: str = Query("NIFTY"), expiry: str | None = Query(None)):
+    try:
+        ctx = build_market_context(instrument, _parse_expiry(expiry))
+        return ctx.get("intraday") or {}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"[ERROR] /api/intraday/status: {type(e).__name__}: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": True, "message": "Intraday status unavailable", "detail": str(e)},
+        )
+
+
 @app.get("/api/events")
 def get_events_endpoint(instrument: str = Query("NIFTY"), days: int = Query(30)):
     try:

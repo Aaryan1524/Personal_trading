@@ -1,0 +1,17 @@
+SCENARIO: VWAP Rejection (11:00-14:00 IST)
+
+Spot has tested VWAP and shown rejection with volume — VWAP is acting as
+dynamic support or resistance.
+
+PRIMARY: Buy slightly ITM weekly option in the direction of rejection.
+- Rejection downward off VWAP: buy ITM PE (one strike ITM)
+- Rejection upward off VWAP: buy ITM CE (one strike ITM)
+
+Why ITM: lower theta sensitivity, better delta capture on 0.3% moves.
+
+Sizing rule: Max risk = 2% of equity.
+
+Exit rules:
+- Take profit: 0.3% move from entry, OR +40% premium gain
+- Stop loss: VWAP reclaimed in opposite direction (closing basis on 5min candle)
+- Time stop: 13:30 IST exit

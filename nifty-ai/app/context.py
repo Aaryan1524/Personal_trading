@@ -1,13 +1,18 @@
 # Market context builder
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from .data.account import get_account_equity
 from .data.banknifty import get_banknifty_data
 from .data.events import event_risk_level, get_upcoming_events
+from .data.intraday import get_intraday_stats
 from .data.nifty50 import get_nifty50_data
 from .data.technicals import get_intraday_technicals, get_technicals
 from .data.vix import get_india_vix
 from .trades.positions import get_positions
+
+_IST = ZoneInfo("Asia/Kolkata")
 
 PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
 
@@ -141,6 +146,190 @@ def load_scenario_prompt(scenario: str) -> str:
     return f"[Scenario prompt for '{scenario}' not found]"
 
 
+def detect_intraday_setup(context: dict) -> dict:
+    """Detect the active mechanical intraday setup based on time window, VWAP,
+    opening range, and OI data already present in *context*.
+
+    Runs after detect_scenario(); does not modify any existing context field.
+
+    Returns:
+        {
+            "is_intraday_eligible": bool,
+            "active_setup":         str | None,
+            "reasoning":            str,
+            "time_window":          str,
+        }
+    """
+    now      = datetime.now(_IST)
+    time_dec = now.hour + now.minute / 60.0   # e.g. 10:30 → 10.5
+
+    _not_eligible = {
+        "is_intraday_eligible": False,
+        "active_setup": None,
+        "reasoning": "Outside intraday trading window (9:30 – 15:00 IST)",
+        "time_window": "closed",
+    }
+
+    # ── Rule 1: time gate ────────────────────────────────────────────────────
+    if time_dec < 9.5 or time_dec > 15.0:
+        return _not_eligible
+
+    intraday    = context.get("intraday") or {}
+    spot        = context.get("spot") or 0.0
+    prev_close  = (context.get("technicals") or {}).get("last_close") or 0.0
+    dte         = context.get("days_to_expiry", 999)
+    instrument  = context.get("instrument", "NIFTY")
+
+    vwap            = intraday.get("vwap")
+    or_high         = intraday.get("opening_range_high")
+    or_low          = intraday.get("opening_range_low")
+    breakout_status = intraday.get("breakout_status")      # "breakout" | "breakdown" | "inside_range"
+    intraday_trend  = intraday.get("intraday_trend", "sideways")
+    day_high        = intraday.get("day_high") or 0.0
+    day_low         = intraday.get("day_low") or 0.0
+
+    # ── Window 1: 9:30 – 11:00 (opening window) ──────────────────────────────
+    if time_dec < 11.0:
+        win = "09:15 – 11:00 IST (opening window)"
+
+        # Setup A — opening range breakout
+        if or_high and or_low and breakout_status in ("breakout", "breakdown"):
+            direction = "above OR high" if breakout_status == "breakout" else "below OR low"
+            return {
+                "is_intraday_eligible": True,
+                "active_setup": "opening_range_breakout",
+                "reasoning": (
+                    f"Spot has broken {direction} "
+                    f"(opening range: {or_low:.0f} – {or_high:.0f}). "
+                    "Momentum trade in breakout direction."
+                ),
+                "time_window": win,
+            }
+
+        # Setup B — gap fill
+        stats = get_intraday_stats(instrument)
+        today_open = stats.get("open") or 0.0
+        if prev_close and today_open:
+            gap_pct = (today_open - prev_close) / prev_close * 100
+            if abs(gap_pct) > 0.4:
+                filling = (
+                    (gap_pct > 0 and intraday_trend == "bearish") or
+                    (gap_pct < 0 and intraday_trend == "bullish")
+                )
+                if filling:
+                    direction = "up" if gap_pct > 0 else "down"
+                    return {
+                        "is_intraday_eligible": True,
+                        "active_setup": "gap_fill",
+                        "reasoning": (
+                            f"Market gapped {direction} {abs(gap_pct):.2f}% from prev close "
+                            f"({prev_close:.0f} → open {today_open:.0f}). "
+                            f"Intraday trend is {intraday_trend} — spot is moving back toward the gap fill."
+                        ),
+                        "time_window": win,
+                    }
+
+        return {
+            "is_intraday_eligible": True,
+            "active_setup": None,
+            "reasoning": "Opening window active — OR not broken and gap < 0.4% (or not filling)",
+            "time_window": win,
+        }
+
+    # ── Window 2: 11:00 – 14:00 (midday window) ─────────────────────────────
+    if time_dec < 14.0:
+        win = "11:00 – 14:00 IST (midday window)"
+
+        # Setup C — VWAP rejection
+        if vwap and spot:
+            vwap_diff_pct = abs(spot - vwap) / vwap * 100
+            if vwap_diff_pct <= 0.1:
+                side = "above" if spot >= vwap else "below"
+                return {
+                    "is_intraday_eligible": True,
+                    "active_setup": "vwap_rejection",
+                    "reasoning": (
+                        f"Spot ({spot:.0f}) is within 0.1% of VWAP ({vwap:.0f}) — "
+                        f"currently {side} VWAP. "
+                        f"Watch for rejection {'back down' if side == 'above' else 'back up'} off this level."
+                    ),
+                    "time_window": win,
+                }
+
+        # Setup D — OI concentration (proxy for 30-min shift; true delta requires time-series polling)
+        strikes = context.get("strikes") or []
+        if strikes:
+            def _top_oi_pct(leg: str) -> float:
+                vals = [
+                    (s.get(leg) or {}).get("oi", 0) or 0
+                    for s in strikes if s.get(leg)
+                ]
+                total = sum(vals)
+                return max(vals) / total * 100 if total > 0 else 0.0
+
+            ce_conc = _top_oi_pct("CE")
+            pe_conc = _top_oi_pct("PE")
+            if ce_conc > 40 or pe_conc > 40:
+                side = "CE" if ce_conc > pe_conc else "PE"
+                pct  = ce_conc if side == "CE" else pe_conc
+                return {
+                    "is_intraday_eligible": True,
+                    "active_setup": "oi_shift",
+                    "reasoning": (
+                        f"Unusual {side} OI concentration: {pct:.1f}% of total {side} OI "
+                        "sits at a single strike — possible institutional positioning. "
+                        "(Note: precise 30-min OI delta requires time-series polling.)"
+                    ),
+                    "time_window": win,
+                }
+
+        return {
+            "is_intraday_eligible": True,
+            "active_setup": None,
+            "reasoning": "Midday window — spot not at VWAP (>0.1% away) and no unusual OI concentration",
+            "time_window": win,
+        }
+
+    # ── Window 3: 14:00 – 15:15 (closing window) ────────────────────────────
+    win = "14:00 – 15:15 IST (closing window)"
+
+    # Setup E — theta scalp
+    if dte <= 1 and spot > 0 and day_high > 0 and day_low > 0:
+        range_pct = (day_high - day_low) / spot * 100
+        if range_pct < 0.5:
+            return {
+                "is_intraday_eligible": True,
+                "active_setup": "theta_scalp",
+                "reasoning": (
+                    f"DTE = {dte} and intraday range only {range_pct:.2f}% — "
+                    "tight range near expiry. ATM straddle sell for final theta decay. "
+                    "Exit by 2:30 PM; no new positions after that."
+                ),
+                "time_window": win,
+            }
+
+    # Setup F — closing momentum
+    if vwap and intraday_trend in ("bullish", "bearish"):
+        side = "above" if intraday_trend == "bullish" else "below"
+        return {
+            "is_intraday_eligible": True,
+            "active_setup": "closing_momentum",
+            "reasoning": (
+                f"Strong {intraday_trend} trend persisting into the close — "
+                f"spot consistently {side} VWAP ({_fmt(vwap)}). "
+                "Momentum likely to continue to 3:15 PM close."
+            ),
+            "time_window": win,
+        }
+
+    return {
+        "is_intraday_eligible": True,
+        "active_setup": None,
+        "reasoning": "No mechanical setup currently active",
+        "time_window": win,
+    }
+
+
 def build_market_context(instrument: str, target_expiry=None) -> dict:
     instrument = instrument.upper()
     if instrument == "NIFTY":
@@ -190,6 +379,14 @@ def build_market_context(instrument: str, target_expiry=None) -> dict:
         "events": events,
     }
     ctx["scenario"] = detect_scenario(ctx)
+
+    # Intraday setup detection runs after scenario is known
+    setup = detect_intraday_setup(ctx)
+    if ctx.get("intraday") is None:
+        ctx["intraday"] = setup
+    else:
+        ctx["intraday"].update(setup)
+
     return ctx
 
 
@@ -251,6 +448,32 @@ def build_system_prompt(context: dict) -> str:
 
     parts.append(scenario_prompt)
     parts.append("")
+
+    # Inject intraday setup prompt when a mechanical setup is active
+    _intraday_ctx = context.get("intraday") or {}
+    _active_setup = _intraday_ctx.get("active_setup")
+    if _active_setup:
+        intraday_prompt = load_scenario_prompt(f"intraday_{_active_setup}")
+        parts.append(
+            "===========================================\n"
+            "ADDITIONAL: INTRADAY OPPORTUNITY DETECTED\n"
+            "===========================================\n"
+            "\n"
+            "An intraday setup is currently active. The operator may choose either:\n"
+            "(a) The positional strategy above (multi-day hold), OR\n"
+            "(b) The intraday setup below (same-day exit)\n"
+            "\n"
+            "When asked to recommend a trade, present BOTH options:\n"
+            "- Option A: positional play (from the main scenario)\n"
+            "- Option B: intraday play (from the setup below)\n"
+            "\n"
+            "Let the operator choose. Default to intraday only if explicitly requested\n"
+            "with words like 'intraday', 'scalp', 'today only', 'quick trade'."
+        )
+        parts.append("")
+        parts.append(intraday_prompt)
+        parts.append("")
+
     parts.append(output_fmt)
     parts.append("")
 
@@ -281,6 +504,18 @@ def build_system_prompt(context: dict) -> str:
         f"CE OI walls: {_fmt_walls(context['oi_walls']['ce'])}",
         f"PE OI walls: {_fmt_walls(context['oi_walls']['pe'])}",
         f"Active scenario: {scenario}",
+        "",
+    ]
+
+    # ── Intraday setup status block ──────────────────────────────────────────
+    _id = context.get("intraday") or {}
+    _active_setup = _id.get("active_setup")
+    market_lines += [
+        "INTRADAY SETUP STATUS:",
+        f"  Active setup: {_active_setup}" if _active_setup
+            else "  Active setup: None — no mechanical intraday entry available right now",
+        f"  Reasoning: {_id.get('reasoning', 'n/a')}",
+        f"  Time window: {_id.get('time_window', 'n/a')}",
         "",
     ]
 

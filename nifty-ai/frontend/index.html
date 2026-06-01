@@ -15,6 +15,12 @@
       <button data-instrument="BANKNIFTY">BANKNIFTY</button>
     </div>
 
+    <div class="mode-toggle" id="mode-toggle">
+      <button data-mode="positional">Positional</button>
+      <button data-mode="intraday">Intraday</button>
+      <button class="active" data-mode="both">Both</button>
+    </div>
+
     <div class="topbar-stats">
       <div class="stat">
         <span class="stat-label">Spot</span>
@@ -46,6 +52,11 @@
         <span class="stat-value" id="topbar-refreshed">—</span>
       </div>
     </div>
+
+    <button class="intraday-status-btn" id="intraday-status-btn" title="Click to ask Claude about the active setup">
+      <span class="intraday-status-dot" id="intraday-status-dot"></span>
+      <span class="intraday-status-label" id="intraday-status-label">no setup</span>
+    </button>
 
     <div class="topbar-actions">
       <button class="btn btn-ghost" id="refresh-btn">Refresh</button>

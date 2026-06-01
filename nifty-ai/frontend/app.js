@@ -12,6 +12,7 @@ const API = {
   positions: "/api/positions",
   tradesLog: "/api/trades/log",
   trades: "/api/trades",
+  intradayStatus: (instrument, expiry) => `/api/intraday/status?instrument=${encodeURIComponent(instrument)}${expiry ? `&expiry=${encodeURIComponent(expiry)}` : ""}`,
 };
 
 const state = {
@@ -20,6 +21,7 @@ const state = {
   context: null,
   prevSpot: null,
   sessionId: crypto.randomUUID(),
+  mode: "both",
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -116,6 +118,24 @@ function renderTopbar(ctx) {
   } else {
     intradayEl.textContent = "—";
     intradayEl.className = "stat-value";
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  intraday status indicator
+// ──────────────────────────────────────────────────────────────
+
+function renderIntradayStatus(intraday) {
+  const btn   = document.getElementById("intraday-status-btn");
+  const label = document.getElementById("intraday-status-label");
+  if (!btn || !label) return;
+  const setup = intraday?.active_setup;
+  if (setup) {
+    btn.classList.add("active");
+    label.textContent = setup.replace(/_/g, " ");
+  } else {
+    btn.classList.remove("active");
+    label.textContent = "no setup";
   }
 }
 
@@ -453,6 +473,7 @@ async function refreshAll() {
     ]);
     state.context = ctx;
     renderTopbar(ctx);
+    renderIntradayStatus(ctx.intraday);
     renderSignals(ctx);
     renderTechnicals(ctx);
     renderChain(ctx);
@@ -484,6 +505,9 @@ function appendChat(role, content, { pending = false } = {}) {
 
 async function sendChatMessage(text) {
   if (!text.trim()) return;
+  let message = text;
+  if (state.mode === "intraday") message += " (intraday only)";
+  else if (state.mode === "positional") message += " (positional only)";
   appendChat("user", text);
   const pending = appendChat("assistant", "Thinking…", { pending: true });
   try {
@@ -492,7 +516,7 @@ async function sendChatMessage(text) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: state.sessionId,
-        message: text,
+        message,
         instrument: state.instrument,
         expiry: state.expiry,
       }),
@@ -575,6 +599,19 @@ function wireUp() {
     });
   });
 
+  document.querySelectorAll("#mode-toggle button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#mode-toggle button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.mode = btn.dataset.mode;
+      refreshAll();
+    });
+  });
+
+  document.getElementById("intraday-status-btn").addEventListener("click", () => {
+    sendChatMessage("What intraday setup is active and should I take it?");
+  });
+
   document.getElementById("refresh-btn").addEventListener("click", refreshAll);
 
   document.querySelectorAll("#tabs .tab").forEach(tab => {
@@ -614,4 +651,12 @@ function wireUp() {
 document.addEventListener("DOMContentLoaded", () => {
   wireUp();
   refreshAll();
+  setInterval(async () => {
+    try {
+      const intraday = await fetchJSON(API.intradayStatus(state.instrument, state.expiry));
+      renderIntradayStatus(intraday);
+    } catch (err) {
+      console.error("Intraday status poll failed:", err);
+    }
+  }, 5 * 60 * 1000);
 });
