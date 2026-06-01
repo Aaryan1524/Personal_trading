@@ -1,6 +1,7 @@
 # Market context builder
 from pathlib import Path
 
+from .data.account import get_account_equity
 from .data.banknifty import get_banknifty_data
 from .data.nifty50 import get_nifty50_data
 from .data.technicals import get_technicals
@@ -49,6 +50,12 @@ _SCENARIO_STRATEGY = {
         "primary": "Iron Condor",
         "alternatives": ["Iron Butterfly", "Short Strangle (if IV near top of range)"],
         "reasoning": "IV 40-60% and price between S1/R1 — range-bound, collect theta decay.",
+    },
+    "long_volatility": {
+        "primary": "Long Straddle / Long Strangle",
+        "alternatives": ["Long ATM Call (if breakout up)", "Long ATM Put (if breakdown)"],
+        "reasoning": "IV rank <25% and price coiling sideways — options are cheap and a volatility "
+                     "expansion is overdue. Convex, defined-risk buy: this is a primary growth engine.",
     },
 }
 
@@ -121,6 +128,8 @@ def detect_scenario(context: dict) -> str:
         return "low_iv_bullish"
     if iv_rank < 40 and trend == "bearish":
         return "low_iv_bearish"
+    if iv_rank < 25 and trend == "sideways":
+        return "long_volatility"
     return "neutral_rangebound"
 
 
@@ -143,10 +152,12 @@ def build_market_context(instrument: str, target_expiry=None) -> dict:
     tech = get_technicals(_TECHNICAL_SYMBOL[instrument])
     vix = get_india_vix()
     positions = get_positions()
+    equity = get_account_equity()
     strikes = data["strikes"]
 
     ctx = {
         "instrument": instrument,
+        "account_equity": equity,
         "spot": data["spot"],
         "atm_strike": data["atm_strike"],
         "expiry_date": data["expiry_date"],
@@ -237,9 +248,23 @@ def build_system_prompt(context: dict) -> str:
     parts.append(output_fmt)
     parts.append("")
 
+    # Account equity drives position sizing — 7% of equity is the per-trade risk cap.
+    equity = context.get("account_equity")
+    if equity is not None:
+        equity_line = (
+            f"Account equity: ₹{equity:,.0f}   "
+            f"Max risk this trade (7%): ₹{equity * 0.07:,.0f}"
+        )
+    else:
+        equity_line = (
+            "Account equity: unavailable (Kite margins call failed) — "
+            "size from ₹40,000 default and flag that equity is stale"
+        )
+
     # Market data block
     market_lines = [
         f"MARKET CONTEXT — {context['instrument']}",
+        equity_line,
         f"Spot: {_fmt(context['spot'])}   ATM: {_fmt(context['atm_strike'], 0)}   "
         f"Expiry: {context.get('expiry_date', 'n/a')}   DTE: {context['days_to_expiry']}   Lot: {context['lot_size']}",
         f"Trend: {context['trend']}   EMA20: {_fmt(t['ema_20'])}   EMA50: {_fmt(t['ema_50'])}",
