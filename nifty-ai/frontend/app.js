@@ -3,8 +3,9 @@
 // ──────────────────────────────────────────────────────────────
 
 const API = {
-  market: (instrument) => `/api/market?instrument=${encodeURIComponent(instrument)}`,
-  scenario: (instrument) => `/api/scenario?instrument=${encodeURIComponent(instrument)}`,
+  market: (instrument, expiry) => `/api/market?instrument=${encodeURIComponent(instrument)}${expiry ? `&expiry=${encodeURIComponent(expiry)}` : ""}`,
+  scenario: (instrument, expiry) => `/api/scenario?instrument=${encodeURIComponent(instrument)}${expiry ? `&expiry=${encodeURIComponent(expiry)}` : ""}`,
+  expiries: (instrument) => `/api/expiries?instrument=${encodeURIComponent(instrument)}`,
   chat: "/api/chat",
   clear: "/api/session/clear",
   positions: "/api/positions",
@@ -14,6 +15,7 @@ const API = {
 
 const state = {
   instrument: "NIFTY",
+  expiry: null,
   context: null,
   prevSpot: null,
   sessionId: crypto.randomUUID(),
@@ -275,7 +277,7 @@ async function renderBuilder(ctx) {
 
   let scenarioData = null;
   try {
-    scenarioData = await fetchJSON(API.scenario(state.instrument));
+    scenarioData = await fetchJSON(API.scenario(state.instrument, state.expiry));
   } catch (err) {
     container.innerHTML = `<div class="builder-empty">Could not load scenario: ${err.message}</div>`;
     return;
@@ -318,6 +320,55 @@ async function renderBuilder(ctx) {
 }
 
 // ──────────────────────────────────────────────────────────────
+//  expiry selector
+// ──────────────────────────────────────────────────────────────
+
+function renderExpiryBar(expiries) {
+  const bar = document.getElementById("chain-expiry-bar");
+  if (!expiries || expiries.length === 0) {
+    bar.innerHTML = "";
+    return;
+  }
+  bar.innerHTML = expiries.map(e => {
+    const isActive = state.expiry === e.date || (state.expiry === null && expiries[0].date === e.date);
+    return `<button class="expiry-pill${isActive ? " active" : ""}" data-expiry="${e.date}">
+      ${e.label}<span class="expiry-type-badge">${e.type}</span>
+    </button>`;
+  }).join("");
+
+  bar.querySelectorAll(".expiry-pill").forEach((pill, idx) => {
+    pill.addEventListener("click", () => {
+      selectExpiry(idx === 0 ? null : pill.dataset.expiry);
+    });
+  });
+}
+
+async function selectExpiry(expiryDate) {
+  if (state.expiry === expiryDate) return;
+  state.expiry = expiryDate;
+
+  {
+    const bar = document.getElementById("chain-expiry-bar");
+    bar.querySelectorAll(".expiry-pill").forEach(p => {
+      const match = expiryDate ? p.dataset.expiry === expiryDate : p === bar.querySelector(".expiry-pill");
+      p.classList.toggle("active", match);
+    });
+  }
+
+  try {
+    const ctx = await fetchJSON(API.market(state.instrument, state.expiry));
+    state.context = ctx;
+    renderTopbar(ctx);
+    renderSignals(ctx);
+    renderTechnicals(ctx);
+    renderChain(ctx);
+    await renderBuilder(ctx);
+  } catch (err) {
+    console.error("selectExpiry failed:", err);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
 //  fetch + render orchestration
 // ──────────────────────────────────────────────────────────────
 
@@ -333,7 +384,7 @@ async function fetchJSON(url, options) {
 async function refreshAll() {
   try {
     const [ctx, positions] = await Promise.all([
-      fetchJSON(API.market(state.instrument)),
+      fetchJSON(API.market(state.instrument, state.expiry)),
       fetchJSON(API.positions).catch(() => []),
     ]);
     state.context = ctx;
@@ -344,6 +395,7 @@ async function refreshAll() {
     await renderBuilder(ctx);
     renderPositions(positions);
     renderCapital(positions);
+    renderExpiryBar(ctx.expiries || []);
   } catch (err) {
     console.error("Failed to refresh:", err);
     alert(`Failed to load market data: ${err.message}`);
@@ -377,6 +429,7 @@ async function sendChatMessage(text) {
         session_id: state.sessionId,
         message: text,
         instrument: state.instrument,
+        expiry: state.expiry,
       }),
     });
     pending.classList.remove("chat-msg-pending");
@@ -451,6 +504,7 @@ function wireUp() {
       document.querySelectorAll("#instrument-toggle button").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       state.instrument = btn.dataset.instrument;
+      state.expiry = null;
       state.prevSpot = null;
       refreshAll();
     });

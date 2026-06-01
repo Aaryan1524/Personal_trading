@@ -1,29 +1,13 @@
-# India VIX data
-import httpx
+# India VIX via Kite Connect — instrument token 264969 (NSE:INDIA VIX)
+from .kite import get_kite_client
 
-NSE_HOMEPAGE = "https://www.nseindia.com"
-NSE_ALL_INDICES = "https://www.nseindia.com/api/allIndices"
-
-_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://www.nseindia.com/",
-}
+_INDIA_VIX_TOKEN = 264969
 
 
 def get_india_vix() -> float | None:
     try:
-        with httpx.Client(headers=_HEADERS, timeout=10.0, follow_redirects=True) as client:
-            client.get(NSE_HOMEPAGE)
-            r = client.get(NSE_ALL_INDICES)
-            r.raise_for_status()
-            data = r.json()
-            for row in data.get("data", []):
-                name = (row.get("index") or row.get("indexSymbol") or "").upper()
-                if "INDIA VIX" in name:
-                    value = row.get("last") or row.get("lastPrice")
-                    return float(value) if value is not None else None
+        kite = get_kite_client()
+        quote = kite.quote([_INDIA_VIX_TOKEN])
+        return float(quote[str(_INDIA_VIX_TOKEN)]["last_price"])
     except Exception:
         return None
-    return None

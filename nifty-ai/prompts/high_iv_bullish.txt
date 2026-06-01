@@ -13,7 +13,7 @@ Reasoning:
 Execution rules:
 - Sell ATM-1 PE (one strike below ATM)
 - Buy ATM-3 PE for protection (three strikes below ATM)
-- Spread width: keep under ₹200 for BankNifty, under ₹100 for Nifty
+- Spread width: keep under 200 points for BankNifty, under 100 points for Nifty
 - Net credit should be at least 30% of the spread width
 
 Key risk: Sudden reversal or gap-down on news.

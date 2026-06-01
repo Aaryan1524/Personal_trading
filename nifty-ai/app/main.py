@@ -1,5 +1,6 @@
 # FastAPI entrypoint
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,9 +12,20 @@ from pydantic import BaseModel
 
 from .chat import _sessions, send_message
 from .context import _SCENARIO_STRATEGY, build_market_context, build_system_prompt, detect_scenario
+from .data.banknifty import get_banknifty_expiries
 from .data.kite import TOKEN_PATH
+from .data.nifty50 import get_nifty_expiries
 from .trades.log import append_trade, list_trades
 from .trades.positions import get_positions
+
+
+def _parse_expiry(expiry_str: str | None):
+    if not expiry_str:
+        return None
+    try:
+        return datetime.strptime(expiry_str, "%d-%b-%Y").date()
+    except ValueError:
+        return None
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = ROOT / "frontend"
@@ -39,10 +51,30 @@ app.add_middleware(
 )
 
 
-@app.get("/api/market")
-def get_market(instrument: str = Query(...)):
+@app.get("/api/expiries")
+def get_expiries(instrument: str = Query(...)):
     try:
-        return build_market_context(instrument)
+        inst = instrument.upper()
+        if inst == "NIFTY":
+            return get_nifty_expiries()
+        elif inst == "BANKNIFTY":
+            return get_banknifty_expiries()
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown instrument: {instrument!r}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] /api/expiries: {type(e).__name__}: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": True, "message": "Market data unavailable — check Kite connection or re-run auth.py", "detail": str(e)},
+        )
+
+
+@app.get("/api/market")
+def get_market(instrument: str = Query(...), expiry: str | None = Query(None)):
+    try:
+        return build_market_context(instrument, _parse_expiry(expiry))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -54,9 +86,9 @@ def get_market(instrument: str = Query(...)):
 
 
 @app.get("/api/scenario")
-def get_scenario(instrument: str = Query(...)):
+def get_scenario(instrument: str = Query(...), expiry: str | None = Query(None)):
     try:
-        ctx = build_market_context(instrument)
+        ctx = build_market_context(instrument, _parse_expiry(expiry))
         scenario = detect_scenario(ctx)
         info = _SCENARIO_STRATEGY.get(scenario, {})
         return {
@@ -79,12 +111,13 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
     instrument: str
+    expiry: str | None = None
 
 
 @app.post("/api/chat")
 def post_chat(req: ChatRequest):
     try:
-        context = build_market_context(req.instrument)
+        context = build_market_context(req.instrument, _parse_expiry(req.expiry))
         system_prompt = build_system_prompt(context)
         response = send_message(req.session_id, req.message, system_prompt)
         return {"response": response, "session_id": req.session_id}
