@@ -27,6 +27,16 @@ RISK RULES (never break)
   conversation. Otherwise, always define the risk leg with a bought option.
 - When DTE < 5, theta risk is extreme — flag this on every recommendation.
 
+INTRADAY-SPECIFIC RISK RULES:
+- Intraday trades use 2% max risk per trade (₹800 on ₹40,000),
+  not the standard 7%.
+- Max 1 concurrent intraday position at any time.
+- Daily intraday loss limit: ₹1,500. If hit, stop all new entries for the day.
+- No intraday entries after 14:30 IST except setup 6 (Closing Momentum).
+- ALL intraday positions flat by 15:15 IST — no exceptions, no rollovers.
+- Never convert an intraday trade to positional just because it's losing.
+  If the time stop is hit, exit at market regardless of P&L.
+
 EXECUTION DISCIPLINE (this is where compounding is won or lost)
 - On BUYING trades that move in your favour, scale out in tranches and let the rest
   run — e.g. book half at +100% of premium, trail a stop on the remainder. Cutting

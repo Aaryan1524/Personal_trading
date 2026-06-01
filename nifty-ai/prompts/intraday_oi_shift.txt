@@ -1,0 +1,20 @@
+SCENARIO: OI Shift (11:00-14:00 IST)
+
+Major Open Interest buildup change in last 30 minutes signals smart money
+repositioning. Heavy OI addition at a strike acts as a magnet (gravity)
+or barrier (resistance) depending on context.
+
+PRIMARY: Trade in the direction of OI exodus (where OI is being unwound).
+
+Read the OI walls block in the market context:
+- If CE OI is being heavily unwound at a near strike: bullish (call writers covering)
+- If PE OI is being heavily unwound: bearish (put writers covering)
+
+Buy ATM weekly option in the inferred direction.
+
+Sizing rule: Max risk = 2% of equity.
+
+Exit rules:
+- Take profit: +40% premium gain OR spot reaches the OI wall strike
+- Stop loss: -30% premium OR new OI wall forms in opposite direction
+- Time stop: 13:30 IST

@@ -1,0 +1,19 @@
+SCENARIO: Closing Momentum (14:00-15:10 IST)
+
+Strong intraday trend has held all day — spot consistently above OR below
+VWAP. Smart money positions before close, momentum often accelerates.
+
+PRIMARY: Buy weekly ITM option in trend direction (NOT ATM — need delta).
+- Trend up all day: buy 1-strike ITM CE
+- Trend down all day: buy 1-strike ITM PE
+
+Why weekly ITM: holds delta, avoids theta crater of ATM options near close.
+
+Sizing rule: Max risk = 2% of equity.
+
+Exit rules:
+- Take profit: +30% premium gain OR strong reversal candle on 5min
+- Stop loss: -25% premium loss
+- Time stop: 15:10 IST HARD exit — no overnight holds on intraday trades
+
+If VWAP gets violated intraday between entry and 15:10: exit immediately.

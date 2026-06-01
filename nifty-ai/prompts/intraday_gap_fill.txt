@@ -1,0 +1,17 @@
+SCENARIO: Gap Fill (9:15-11:00 IST)
+
+Market opened with a gap >0.4% from previous close. Statistically,
+~65% of small gaps fill within the morning session.
+
+PRIMARY:
+- If gap UP: buy ATM PE (betting on gap closure downward)
+- If gap DOWN: buy ATM CE (betting on gap closure upward)
+
+Sizing rule: Max risk = 2% of equity. Use weekly expiry.
+
+Exit rules:
+- Take profit: when gap fills 70% (spot reaches 30% back to previous close)
+- Stop loss: gap extends another 0.3% in original direction
+- Time stop: 11:00 IST hard exit
+
+Avoid this setup on event days (RBI, budget, earnings) — gaps don't fill.

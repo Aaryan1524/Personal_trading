@@ -1,0 +1,19 @@
+SCENARIO: Theta Scalp (14:00-15:15 IST, DTE 0-1 only)
+
+Late session on expiry or near-expiry day with low intraday range.
+Theta acceleration is extreme — selling premium with a tight hedge captures
+the final time decay.
+
+PRIMARY: Short Iron Fly (not naked) — never naked on expiry day.
+- Sell ATM CE and ATM PE
+- Buy nearest OTM CE and nearest OTM PE as defined hedge
+
+Sizing rule: HALF normal size on expiry day. Max risk = 1% of equity (₹400).
+
+Exit rules (strict):
+- Take profit: +30% of premium collected
+- Stop loss: -40% of premium collected
+- Time stop: 14:45 IST MANDATORY exit (gamma risk extreme after this)
+
+If spot moves outside breakeven range at any point: exit immediately,
+do not wait for stop loss.

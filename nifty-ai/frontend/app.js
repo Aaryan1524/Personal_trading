@@ -6,11 +6,13 @@ const API = {
   market: (instrument, expiry) => `/api/market?instrument=${encodeURIComponent(instrument)}${expiry ? `&expiry=${encodeURIComponent(expiry)}` : ""}`,
   scenario: (instrument, expiry) => `/api/scenario?instrument=${encodeURIComponent(instrument)}${expiry ? `&expiry=${encodeURIComponent(expiry)}` : ""}`,
   expiries: (instrument) => `/api/expiries?instrument=${encodeURIComponent(instrument)}`,
+  events: (instrument) => `/api/events?instrument=${encodeURIComponent(instrument)}&days=30`,
   chat: "/api/chat",
   clear: "/api/session/clear",
   positions: "/api/positions",
   tradesLog: "/api/trades/log",
   trades: "/api/trades",
+  intradayStatus: (instrument, expiry) => `/api/intraday/status?instrument=${encodeURIComponent(instrument)}${expiry ? `&expiry=${encodeURIComponent(expiry)}` : ""}`,
 };
 
 const state = {
@@ -19,6 +21,7 @@ const state = {
   context: null,
   prevSpot: null,
   sessionId: crypto.randomUUID(),
+  mode: "both",
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -102,6 +105,38 @@ function renderTopbar(ctx) {
     changeEl.textContent = "";
   }
   state.prevSpot = ctx.spot;
+
+  const id = ctx.intraday;
+  document.getElementById("topbar-vwap").textContent = id ? fmt.price(id.vwap) : "—";
+  const intradayEl = document.getElementById("topbar-intraday");
+  if (id) {
+    const trend = id.intraday_trend;
+    const cls = trend === "bullish" ? "bull" : trend === "bearish" ? "bear" : "flat";
+    const arrow = trend === "bullish" ? "▲" : trend === "bearish" ? "▼" : "→";
+    intradayEl.textContent = `${arrow} ${trend.charAt(0).toUpperCase() + trend.slice(1)}`;
+    intradayEl.className = `stat-value ${cls}`;
+  } else {
+    intradayEl.textContent = "—";
+    intradayEl.className = "stat-value";
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  intraday status indicator
+// ──────────────────────────────────────────────────────────────
+
+function renderIntradayStatus(intraday) {
+  const btn   = document.getElementById("intraday-status-btn");
+  const label = document.getElementById("intraday-status-label");
+  if (!btn || !label) return;
+  const setup = intraday?.active_setup;
+  if (setup) {
+    btn.classList.add("active");
+    label.textContent = setup.replace(/_/g, " ");
+  } else {
+    btn.classList.remove("active");
+    label.textContent = "no setup";
+  }
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -321,6 +356,53 @@ async function renderBuilder(ctx) {
 }
 
 // ──────────────────────────────────────────────────────────────
+//  events tab
+// ──────────────────────────────────────────────────────────────
+
+const SOURCE_LABEL = {
+  kite_expiry: "Kite",
+  nse_holiday: "NSE",
+  nse_events:  "NSE",
+};
+
+function renderEvents(events) {
+  const container = document.getElementById("events-list");
+  if (!events || events.length === 0) {
+    container.innerHTML = '<div class="events-empty">No upcoming events in the next 30 days.</div>';
+    return;
+  }
+
+  const items = events.map(ev => {
+    const impactCls = ev.impact === "HIGH" ? "event-high" : "event-medium";
+    const dayCls    = ev.days_away === 0 ? "urgent"
+                    : ev.days_away <= 3  ? "soon" : "";
+    const dayLabel  = ev.days_away === 0 ? "Today"
+                    : ev.days_away === 1 ? "Tomorrow"
+                    : `${ev.days_away}d away`;
+    const src       = SOURCE_LABEL[ev.source] || ev.source;
+    return `
+      <div class="event-item ${impactCls}">
+        <div class="event-dot"></div>
+        <div class="event-content">
+          <div class="event-header-row">
+            <span class="event-name">${ev.name}</span>
+            <span class="event-badge">${ev.impact}</span>
+          </div>
+          <div class="event-meta-row">
+            <span class="event-date">${ev.date_str}</span>
+            <span class="event-dot-sep">·</span>
+            <span class="event-days ${dayCls}">${dayLabel}</span>
+            <span class="event-source-chip">${src}</span>
+          </div>
+          ${ev.notes ? `<div class="event-notes">${ev.notes}</div>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+
+  container.innerHTML = `<div class="events-timeline">${items}</div>`;
+}
+
+// ──────────────────────────────────────────────────────────────
 //  expiry selector
 // ──────────────────────────────────────────────────────────────
 
@@ -384,12 +466,14 @@ async function fetchJSON(url, options) {
 
 async function refreshAll() {
   try {
-    const [ctx, positions] = await Promise.all([
+    const [ctx, positions, events] = await Promise.all([
       fetchJSON(API.market(state.instrument, state.expiry)),
       fetchJSON(API.positions).catch(() => []),
+      fetchJSON(API.events(state.instrument)).catch(() => []),
     ]);
     state.context = ctx;
     renderTopbar(ctx);
+    renderIntradayStatus(ctx.intraday);
     renderSignals(ctx);
     renderTechnicals(ctx);
     renderChain(ctx);
@@ -397,6 +481,7 @@ async function refreshAll() {
     renderPositions(positions);
     renderCapital(positions);
     renderExpiryBar(ctx.expiries || []);
+    renderEvents(events);
   } catch (err) {
     console.error("Failed to refresh:", err);
     alert(`Failed to load market data: ${err.message}`);
@@ -420,6 +505,9 @@ function appendChat(role, content, { pending = false } = {}) {
 
 async function sendChatMessage(text) {
   if (!text.trim()) return;
+  let message = text;
+  if (state.mode === "intraday") message += " (intraday only)";
+  else if (state.mode === "positional") message += " (positional only)";
   appendChat("user", text);
   const pending = appendChat("assistant", "Thinking…", { pending: true });
   try {
@@ -428,7 +516,7 @@ async function sendChatMessage(text) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: state.sessionId,
-        message: text,
+        message,
         instrument: state.instrument,
         expiry: state.expiry,
       }),
@@ -511,6 +599,19 @@ function wireUp() {
     });
   });
 
+  document.querySelectorAll("#mode-toggle button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#mode-toggle button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.mode = btn.dataset.mode;
+      refreshAll();
+    });
+  });
+
+  document.getElementById("intraday-status-btn").addEventListener("click", () => {
+    sendChatMessage("What intraday setup is active and should I take it?");
+  });
+
   document.getElementById("refresh-btn").addEventListener("click", refreshAll);
 
   document.querySelectorAll("#tabs .tab").forEach(tab => {
@@ -550,4 +651,12 @@ function wireUp() {
 document.addEventListener("DOMContentLoaded", () => {
   wireUp();
   refreshAll();
+  setInterval(async () => {
+    try {
+      const intraday = await fetchJSON(API.intradayStatus(state.instrument, state.expiry));
+      renderIntradayStatus(intraday);
+    } catch (err) {
+      console.error("Intraday status poll failed:", err);
+    }
+  }, 5 * 60 * 1000);
 });
